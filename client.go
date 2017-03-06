@@ -396,6 +396,7 @@ func getCookie(w http.ResponseWriter, r *http.Request) *http.Cookie {
 			Value:    newSessionId(),
 			MaxAge:   86400,
 			HttpOnly: false,
+			Secure:   true,
 		}
 
 		if glog.V(2) {
