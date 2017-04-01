@@ -175,7 +175,7 @@ func (c *Client) RedirectToLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, u, http.StatusFound)
 }
 
-// RedirectToLogout replies to the request with a redirect URL to authenticate with CAS.
+// RedirectToLogin replies to the request with a redirect URL to authenticate with CAS.
 func (c *Client) RedirectToLogin(w http.ResponseWriter, r *http.Request) {
 	u, err := c.LoginUrlForRequest(r)
 	if err != nil {
@@ -392,11 +392,12 @@ func getCookie(w http.ResponseWriter, r *http.Request) *http.Cookie {
 		// NOTE: Intentionally not enabling HttpOnly so the cookie can
 		//       still be used by Ajax requests.
 		c = &http.Cookie{
-			Name:     sessionCookieName,
-			Value:    newSessionId(),
-			MaxAge:   86400,
+			Name:  sessionCookieName,
+			Value: newSessionId(),
+			// MaxAge:   86400,
 			HttpOnly: false,
 			Secure:   true,
+			Path:     "/",
 		}
 
 		if glog.V(2) {
