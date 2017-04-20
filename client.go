@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 	"sync"
 
 	"github.com/golang/glog"
@@ -93,7 +94,7 @@ func requestURL(r *http.Request) (*url.URL, error) {
 
 // LoginUrlForRequest determines the CAS login URL for the http.Request.
 func (c *Client) LoginUrlForRequest(r *http.Request) (string, error) {
-	u, err := c.url.Parse("login")
+	u, err := c.url.Parse(path.Join(c.url.Path, "login"))
 	if err != nil {
 		return "", err
 	}
@@ -112,7 +113,7 @@ func (c *Client) LoginUrlForRequest(r *http.Request) (string, error) {
 
 // LogoutUrlForRequest determines the CAS logout URL for the http.Request.
 func (c *Client) LogoutUrlForRequest(r *http.Request) (string, error) {
-	u, err := c.url.Parse("logout")
+	u, err := c.url.Parse(path.Join(c.url.Path, "logout"))
 	if err != nil {
 		return "", err
 	}
@@ -133,7 +134,7 @@ func (c *Client) LogoutUrlForRequest(r *http.Request) (string, error) {
 
 // ServiceValidateUrlForRequest determines the CAS serviceValidate URL for the ticket and http.Request.
 func (c *Client) ServiceValidateUrlForRequest(ticket string, r *http.Request) (string, error) {
-	u, err := c.url.Parse("serviceValidate")
+	u, err := c.url.Parse(path.Join(c.url.Path, "serviceValidate"))
 	if err != nil {
 		return "", err
 	}
@@ -153,7 +154,7 @@ func (c *Client) ServiceValidateUrlForRequest(ticket string, r *http.Request) (s
 
 // ValidateUrlForRequest determines the CAS validate URL for the ticket and http.Request.
 func (c *Client) ValidateUrlForRequest(ticket string, r *http.Request) (string, error) {
-	u, err := c.url.Parse("validate")
+	u, err := c.url.Parse(path.Join(c.url.Path, "validate"))
 	if err != nil {
 		return "", err
 	}
@@ -188,7 +189,7 @@ func (c *Client) RedirectToLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, u, http.StatusFound)
 }
 
-// RedirectToLogout replies to the request with a redirect URL to authenticate with CAS.
+// RedirectToLogin replies to the request with a redirect URL to authenticate with CAS.
 func (c *Client) RedirectToLogin(w http.ResponseWriter, r *http.Request) {
 	u, err := c.LoginUrlForRequest(r)
 	if err != nil {
@@ -405,10 +406,12 @@ func getCookie(w http.ResponseWriter, r *http.Request) *http.Cookie {
 		// NOTE: Intentionally not enabling HttpOnly so the cookie can
 		//       still be used by Ajax requests.
 		c = &http.Cookie{
-			Name:     sessionCookieName,
-			Value:    newSessionId(),
-			MaxAge:   86400,
+			Name:  sessionCookieName,
+			Value: newSessionId(),
+			// MaxAge:   86400,
 			HttpOnly: false,
+			Secure:   true,
+			Path:     "/",
 		}
 
 		if glog.V(2) {
