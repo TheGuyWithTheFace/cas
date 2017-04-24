@@ -18,6 +18,7 @@ type Options struct {
 	Store       TicketStore  // Custom TicketStore, if nil a MemoryStore will be used
 	Client      *http.Client // Custom http client to allow options for http connections
 	SendService bool         // Custom sendService to determine whether you need to send service param
+	Secure      bool         // Custom secure, if true uses secure cookies
 }
 
 // Client implements the main protocol
@@ -29,6 +30,7 @@ type Client struct {
 	mu          sync.Mutex
 	sessions    map[string]string
 	sendService bool
+	insecure    bool
 }
 
 // NewClient creates a Client with the provided Options.
@@ -57,6 +59,7 @@ func NewClient(options *Options) *Client {
 		client:      client,
 		sessions:    make(map[string]string),
 		sendService: options.SendService,
+		insecure:    !options.Secure,
 	}
 }
 
@@ -345,7 +348,7 @@ func (c *Client) validateTicketCas1(ticket string, service *http.Request) error 
 // A cookie is set on the response if one is not provided with the request.
 // Validates the ticket if the URL parameter is provided.
 func (c *Client) getSession(w http.ResponseWriter, r *http.Request) {
-	cookie := getCookie(w, r)
+	cookie := c.getCookie(w, r)
 
 	if s, ok := c.sessions[cookie.Value]; ok {
 		if t, err := c.tickets.Read(s); err == nil {
@@ -400,29 +403,29 @@ func (c *Client) getSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // getCookie finds or creates the session cookie on the response.
-func getCookie(w http.ResponseWriter, r *http.Request) *http.Cookie {
-	c, err := r.Cookie(sessionCookieName)
+func (c *Client) getCookie(w http.ResponseWriter, r *http.Request) *http.Cookie {
+	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
 		// NOTE: Intentionally not enabling HttpOnly so the cookie can
 		//       still be used by Ajax requests.
-		c = &http.Cookie{
+		cookie = &http.Cookie{
 			Name:  sessionCookieName,
 			Value: newSessionId(),
 			// MaxAge:   86400,
 			HttpOnly: false,
-			Secure:   true,
+			Secure:   !c.insecure,
 			Path:     "/",
 		}
 
 		if glog.V(2) {
-			glog.Infof("Setting %v cookie with value: %v", c.Name, c.Value)
+			glog.Infof("Setting %v cookie with value: %v", cookie.Name, cookie.Value)
 		}
 
-		r.AddCookie(c) // so we can find it later if required
-		http.SetCookie(w, c)
+		r.AddCookie(cookie) // so we can find it later if required
+		http.SetCookie(w, cookie)
 	}
 
-	return c
+	return cookie
 }
 
 // newSessionId generates a new opaque session identifier for use in the cookie.
@@ -459,7 +462,7 @@ func (c *Client) setSession(id string, ticket string) {
 
 // clearSession removes the session from the client and clears the cookie.
 func (c *Client) clearSession(w http.ResponseWriter, r *http.Request) {
-	cookie := getCookie(w, r)
+	cookie := c.getCookie(w, r)
 
 	if s, ok := c.sessions[cookie.Value]; ok {
 		if err := c.tickets.Delete(s); err != nil {
